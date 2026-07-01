@@ -615,9 +615,10 @@ const I18N = {
     drawLabel:"تعادل",
     currentTotal:"إجمالي توقعاتك الحالي",
     points:"نقطة", pts:"نقطة",
-    saveBtn:"حفظ التوقعات", savedToast:"تم حفظ توقعاتك بنجاح",
+    saveBtn:"⚽ شووت", savedToast:"تم حفظ توقعاتك بنجاح",
     completeAllToSave:"أكمل كل المباريات المفتوحة لتتمكن من الحفظ",
     guestReadOnly:"وضع ضيف — للقراءة فقط. سجّل اسمك للمشاركة بالتوقع.",
+    welcomeBack:"أهلاً بك",
     listView:"قائمة", bracketView:"قوس",
     statusOpen:"مفتوح", statusSoon:"قادم", statusClosed:"مغلق",
     closesIn:"يغلق خلال", matchLocked:"انطلقت المباراة",
@@ -654,9 +655,10 @@ const I18N = {
     drawLabel:"Draw",
     currentTotal:"Your current total",
     points:"pt", pts:"pts",
-    saveBtn:"Save predictions", savedToast:"Your predictions were saved",
+    saveBtn:"⚽ Shoot!", savedToast:"Your predictions were saved",
     completeAllToSave:"Complete all open matches to save",
     guestReadOnly:"Guest mode — read only. Enter your name to participate.",
+    welcomeBack:"Welcome",
     listView:"List", bracketView:"Bracket",
     statusOpen:"Open", statusSoon:"Upcoming", statusClosed:"Closed",
     closesIn:"Closes in", matchLocked:"Match started",
@@ -992,6 +994,11 @@ function renderPredictTab(){
     guestBanner = `<div class="card" style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
       <span class="muted" style="font-size:13px;">👀 ${esc(t('guestReadOnly'))}</span>
       <button class="btn btn-soft btn-sm" data-action="backToRegister">${esc(t('joinBtn'))}</button>
+    </div>`;
+  } else {
+    guestBanner = `<div class="card" style="display:flex;align-items:center;gap:12px;">
+      <span style="font-size:26px;line-height:1;">👋</span>
+      <span style="font-family:var(--font-display);font-weight:700;font-size:15.5px;">${esc(t('welcomeBack'))} <span style="color:var(--teal-deep);">${esc(state.user.name)}</span></span>
     </div>`;
   }
   let html = guestBanner;
