@@ -1797,6 +1797,7 @@ function adminPersistEditedUser(userId){
 /* القسم 7: Firebase Firestore — التخزين والمزامنة الحيّة          */
 /* ============================================================ */
 let fsDb = null, predictionsRef = null, resultsRef = null;
+let fsBroken = false; // يصبح true إذا فشلت الكتابة/القراءة (غالباً بسبب قواعد أمان Firestore)
 const FIRESTORE_CONFIGURED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey.indexOf('REPLACE')===-1);
 
 (function initFirebase(){
@@ -1820,18 +1821,42 @@ function isFormFocused(){
   return ae && ae.closest && (ae.closest('#mainRoot [data-match-card]') || ae.closest('.admin-lock') || ae.id==='nameInput');
 }
 
+// عند فشل المزامنة الحيّة (غالباً بسبب قواعد أمان Firestore التي تمنع
+// القراءة/الكتابة العامة)، ننبّه المشرف بشكل واضح بدلاً من فشل صامت يُفقد
+// بياناته دون أن يدري، ونستمر بالعمل محلياً على هذا الجهاز كخط دفاع أخير.
+function markFirestoreBroken(context, err){
+  console.error('[WC Challenge] Firestore '+context+' failed — check Firestore Security Rules in the Firebase console.', err);
+  if(!fsBroken){
+    fsBroken = true;
+    showToast(state.lang==='en'
+      ? '⚠️ Live sync failed — check Firestore rules. Saving locally for now.'
+      : '⚠️ فشلت المزامنة الحيّة — تحقق من قواعد أمان Firestore. يتم الحفظ محلياً مؤقتاً.');
+  }
+}
+
 function subscribeLive(){
   if(fsDb){
     onSnapshot(predictionsRef, snap=>{
       const data = snap.exists() ? snap.data() : null;
       state.predictions = (data && data.value) || [];
+      saveLS('wc_predictions_local', state.predictions); // نسخة احتياطية محلية دائماً
       onPredictionsUpdated();
-    }, err=>console.warn('predictions onSnapshot error', err));
+    }, err=>{
+      markFirestoreBroken('predictions sync', err);
+      // لا نمسح بيانات المستخدم المحلية عند فشل المزامنة — نستخدم آخر نسخة محفوظة محلياً بدلاً من تفريغها
+      if(state.predictions.length===0) state.predictions = loadLS('wc_predictions_local', []);
+      render();
+    });
     onSnapshot(resultsRef, snap=>{
       const data = snap.exists() ? snap.data() : null;
       state.results = (data && data.value) ? normalizeResults(data.value) : emptyResults();
+      saveLS('wc_results_local', state.results);
       onResultsUpdated();
-    }, err=>console.warn('results onSnapshot error', err));
+    }, err=>{
+      markFirestoreBroken('results sync', err);
+      state.results = normalizeResults(loadLS('wc_results_local', null) || emptyResults());
+      render();
+    });
   } else {
     state.predictions = loadLS('wc_predictions_local', []);
     state.results = normalizeResults(loadLS('wc_results_local', null) || emptyResults());
@@ -1860,13 +1885,19 @@ function onResultsUpdated(){
   render();
 }
 
+// نكتب دائماً نسخة محلية فور التحديث (write-through)، بصرف النظر عن نجاح
+// Firestore، حتى لا تُفقد توقعات المشارك أبداً حتى لو تعطّلت المزامنة الحيّة
 function persistPredictions(){
-  if(fsDb){ setDoc(predictionsRef, { value: state.predictions }); }
-  else { saveLS('wc_predictions_local', state.predictions); }
+  saveLS('wc_predictions_local', state.predictions);
+  if(fsDb){
+    setDoc(predictionsRef, { value: state.predictions }).catch(err=>markFirestoreBroken('saving predictions', err));
+  }
 }
 function persistResults(){
-  if(fsDb){ setDoc(resultsRef, { value: state.results }); }
-  else { saveLS('wc_results_local', state.results); }
+  saveLS('wc_results_local', state.results);
+  if(fsDb){
+    setDoc(resultsRef, { value: state.results }).catch(err=>markFirestoreBroken('saving results', err));
+  }
 }
 function saveAllPredictionsToFirestore(){ persistPredictions(); }
 function saveResultsToFirestore(){ persistResults(); }
