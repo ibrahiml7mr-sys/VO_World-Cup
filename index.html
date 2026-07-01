@@ -449,11 +449,12 @@
 <div id="toastRoot"></div>
 
 
-<!-- Firebase (Firestore) — استبدل القيم في FIREBASE_CONFIG أدناه ببيانات مشروعك -->
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
-
-<script>
+<!-- Firebase (Firestore) — Modular SDK v12.15.0 -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.15.0/firebase-app.js";
+import {
+  getFirestore, doc, setDoc, onSnapshot
+} from "https://www.gstatic.com/firebasejs/12.15.0/firebase-firestore.js";
 /* =================================================================
    تحدي توقعات كأس العالم 2026 — Visit Oman (National Travel Operator)
    ملف واحد كامل: Config / State / Scoring / Rendering / Admin / Sharing
@@ -466,12 +467,12 @@
 // بيانات اعتماد Firebase — Placeholder، استبدلها ببيانات مشروعك الفعلي من
 // Firebase Console > Project settings > General > Your apps > SDK setup
 const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyD6LqmOPL_evyJ7I3azA2P90ALChShwE-w",
+  apiKey: "AIzaSyD6Lqm0PL_evyJ7I3azA2P90ALChShwE-w",
   authDomain: "world-cup--vo.firebaseapp.com",
   projectId: "world-cup--vo",
   storageBucket: "world-cup--vo.firebasestorage.app",
   messagingSenderId: "921887477377",
-  appId: "1:921887477377:web:9c2ff9178f56c5d6668780"
+  appId: "1:921887477377:web:9dac4703463aa686668780"
 };
 
 const ADMIN_PASSWORD = "Admin2026"; // كلمة مرور لوحة التحكم (يمكن تغييرها)
@@ -1731,10 +1732,10 @@ const FIRESTORE_CONFIGURED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey
     return;
   }
   try{
-    firebase.initializeApp(FIREBASE_CONFIG);
-    fsDb = firebase.firestore();
-    predictionsRef = fsDb.collection('calendar').doc('wc_predictions');
-    resultsRef = fsDb.collection('calendar').doc('wc_results');
+    const app = initializeApp(FIREBASE_CONFIG);
+    fsDb = getFirestore(app);
+    predictionsRef = doc(fsDb, 'calendar', 'wc_predictions');
+    resultsRef = doc(fsDb, 'calendar', 'wc_results');
   }catch(e){
     console.warn('[WC Challenge] Firebase init failed, falling back to local-only mode.', e);
     fsDb = null;
@@ -1748,13 +1749,13 @@ function isFormFocused(){
 
 function subscribeLive(){
   if(fsDb){
-    predictionsRef.onSnapshot(snap=>{
-      const data = snap.exists ? snap.data() : null;
+    onSnapshot(predictionsRef, snap=>{
+      const data = snap.exists() ? snap.data() : null;
       state.predictions = (data && data.value) || [];
       onPredictionsUpdated();
     }, err=>console.warn('predictions onSnapshot error', err));
-    resultsRef.onSnapshot(snap=>{
-      const data = snap.exists ? snap.data() : null;
+    onSnapshot(resultsRef, snap=>{
+      const data = snap.exists() ? snap.data() : null;
       state.results = (data && data.value) ? normalizeResults(data.value) : emptyResults();
       onResultsUpdated();
     }, err=>console.warn('results onSnapshot error', err));
@@ -1788,11 +1789,11 @@ function onResultsUpdated(){
 }
 
 function persistPredictions(){
-  if(fsDb){ predictionsRef.set({ value: state.predictions }); }
+  if(fsDb){ setDoc(predictionsRef, { value: state.predictions }); }
   else { saveLS('wc_predictions_local', state.predictions); }
 }
 function persistResults(){
-  if(fsDb){ resultsRef.set({ value: state.results }); }
+  if(fsDb){ setDoc(resultsRef, { value: state.results }); }
   else { saveLS('wc_results_local', state.results); }
 }
 function saveAllPredictionsToFirestore(){ persistPredictions(); }
